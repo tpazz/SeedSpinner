@@ -1,5 +1,6 @@
 # ai_agent.py
 import os
+import tui
 from openai import AzureOpenAI
 
 # Module-level variable to hold the client instance
@@ -84,3 +85,86 @@ def get_ai_suggestions(system_prompt_content: str, user_prompt_content: str, mod
     except Exception as e:
         print(f"\n[Error] Failed to get response from AI: {e}")
         return None
+
+def run_ai_brainstorming(state):
+    """Triggers AI brainstorming and updates words_for_engine with the combined results."""
+    tui.clear_screen()
+    print("--- Run AI Brainstorming ---")
+
+    # Prerequisites check (remains the same)
+    if not state['client_ready']:
+        print("[Error] Azure client not ready. Please set endpoint/key first (Option 1)."); tui.pause(); return
+    if not state['system_prompt_path'] or not os.path.exists(state['system_prompt_path']):
+        print("[Error] System prompt file not set or not found. Please set it first (Option 2)."); tui.pause(); return
+    if not state['seed_words']:
+        print("[Error] No seed words entered. Please enter seed words first (Option 4)."); tui.pause(); return
+
+    # Read system prompt content (remains the same)
+    system_prompt_content = read_prompt_file(state['system_prompt_path'])
+    if system_prompt_content is None: tui.pause(); return
+
+    # Prepare user prompt content (remains the same)
+    user_prompt_content = f"Expand these seed words: {', '.join(state['seed_words'])}"
+
+    # Call the agent function (remains the same)
+    suggestions = get_ai_suggestions(
+        system_prompt_content=system_prompt_content,
+        user_prompt_content=user_prompt_content,
+        model_name=state['model_name']
+    )
+
+    if suggestions is not None: # Check if call succeeded
+        # Store the raw suggestions (including seeds) - good for potential future reference
+        state['ai_suggestions'] = list(dict.fromkeys(state['seed_words'] + suggestions))
+
+        # --- Key Change Below ---
+        # Update words_for_engine directly to the combined & deduplicated list
+        state['words_for_engine'] = list(state['ai_suggestions'])
+        # --- End Key Change ---
+
+        print(f"\nBrainstorming complete.")
+        print(f"Words for engine updated to {len(state['words_for_engine'])} unique terms (Seeds + AI Suggestions).")
+        print("Use Option 6 (Review/Filter) to refine this list if needed.")
+    else:
+        print("\nAI Brainstorming failed or returned no results. Words for engine remain unchanged.")
+    tui.pause()
+
+
+def set_model_name(state):
+    """Sets the AI model name (deployment name)."""
+    tui.clear_screen()
+    print("--- Set AI Model Name ---")
+    print("Enter the deployment name of your Azure OpenAI model.")
+    current_model = state.get('model_name', 'Not Set')
+    new_model = input(f"Model name [Current: {current_model}]: ").strip()
+    if new_model:
+        state['model_name'] = new_model
+        print(f"AI Model set to: {state['model_name']}")
+    else:
+        print("No changes made.")
+    tui.pause()    
+
+
+def get_azure_details(state):
+    """Prompts user for Azure endpoint and key and initializes client via agent."""
+    tui.clear_screen()
+    print("--- Set Azure OpenAI Credentials ---")
+    endpoint = input(f"Enter Azure Endpoint [Current: {state.get('endpoint', 'Not Set')}]: ")
+    key = input(f"Enter Azure API Key [Current: {'******' if state.get('key') else 'Not Set'}]: ")
+
+    # Update state immediately even if initialization fails later
+    if endpoint:
+        state['endpoint'] = endpoint.strip()
+    if key:
+        state['key'] = key.strip()
+
+    # Attempt to initialize client via the agent function
+    if state.get('endpoint') and state.get('key'):
+        success, message = initialize_client(state['endpoint'], state['key'])
+        state['client_ready'] = success
+        print(f"\n{message}") # Display status/error message from agent
+    else:
+        state['client_ready'] = False
+        print("\n[Warning] Endpoint or Key not fully provided. AI Client not initialized.")
+    tui.pause()
+
