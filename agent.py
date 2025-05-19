@@ -1,6 +1,7 @@
 # ai_agent.py
 import os
 import tui
+import fileIO
 from openai import AzureOpenAI
 
 # Module-level variable to hold the client instance
@@ -100,7 +101,7 @@ def run_ai_brainstorming(state):
         print("[Error] No seed words entered. Please enter seed words first (Option 4)."); tui.pause(); return
 
     # Read system prompt content (remains the same)
-    system_prompt_content = read_prompt_file(state['system_prompt_path'])
+    system_prompt_content = fileIO.read_prompt_file(state['system_prompt_path'])
     if system_prompt_content is None: tui.pause(); return
 
     # Prepare user prompt content (remains the same)
