@@ -1,5 +1,10 @@
 import itertools # For more advanced combinations if needed later, though not strictly used here yet
 import tui
+from datetime import datetime # Make sure to add this import at the top of your file
+import tempfile
+import subprocess
+import os
+import estimate
 
 def _apply_capitalisation(word):
     """Generates capitalisation variations for a single word."""
@@ -50,16 +55,56 @@ def _apply_leet_speak(word):
 
 
 def _apply_affixes(word):
-    """Applies common suffixes and prefixes to a single word."""
-    common_numbers = [str(i) for i in range(10)] + ["123", "007", "12345", "112233"]
-    common_years = ["2022", "2023", "2024", "1990", "1995", "2000"]
-    common_symbols = ["!", "@", "#", "$", "%", "^", "&", "*", "?", "_", "-"]
-    all_affixes = common_numbers + common_years + common_symbols
-    variations = {word}
-    for affix in all_affixes:
-        variations.add(word + affix)
-        variations.add(affix + word)
-    return list(variations)
+    """
+    Applies common suffixes and prefixes, including chained number+symbol combinations.
+    """
+    # --- Define Affix Groups ---
+    # User-supplied prefixes/suffixes would be defined here if you re-add that feature.
+    # For now, we'll use our generated lists.
+
+    current_year = datetime.now().year
+    years_to_generate = 50
+    
+    # Group 1: Numbers & Years
+    full_years = [str(year) for year in range(current_year, current_year - years_to_generate - 1, -1)]
+    two_digit_years = [datetime(year, 1, 1).strftime('%y') for year in range(current_year, current_year - years_to_generate - 1, -1)]
+    simple_numbers = [str(i) for i in range(10)] + ["0" + str(i) for i in range(10)] + ["123", "12345"]
+    
+    numeric_affixes = full_years + two_digit_years + simple_numbers
+
+    # Group 2: Symbols
+    symbol_affixes = ["!", "@", "#", "$", "%", "^", "&", "*", "?", "_", "-"]
+
+    # --- Generation Logic ---
+    final_variations = {word} # Start with the base word
+
+    # 1. Apply single prefixes and suffixes from ALL groups
+    all_simple_affixes = numeric_affixes + symbol_affixes
+    for affix in all_simple_affixes:
+        final_variations.add(word + affix) # e.g., liverpool05
+        # final_variations.add(affix + word) # e.g., 05liverpool
+        final_variations.add(word + "!")   # e.g., liverpool!
+
+    # 2. Create chained SUFFIXES (Number -> Symbol)
+    # Take each numeric suffix, add it to the word, then add a symbol
+    for num_suf in numeric_affixes:
+        word_with_num_suf = word + num_suf
+        for sym_suf in symbol_affixes:
+            final_variations.add(word_with_num_suf + sym_suf) # e.g., liverpool05!
+
+    # 3. Create chained PREFIXES (Symbol -> Number) - a common pattern
+    # Take each symbol prefix, add it to the word, then add a number
+    # for sym_pre in symbol_affixes:
+    #     word_with_sym_pre = sym_pre + word
+    #     for num_pre in numeric_affixes:
+    #         final_variations.add(num_pre + word_with_sym_pre) # e.g., 05!liverpool
+
+    for sym_suf in symbol_affixes:
+        word_with_sym_suf = word + sym_suf
+        for num_suf in numeric_affixes:
+            final_variations.add(word_with_sym_suf + num_suf) # e.g., liverpool!05
+
+    return list(final_variations)
 
 # --- START OF MAJOR CHANGE AREA ---
 
@@ -91,154 +136,142 @@ def _generate_single_word_core_variations(base_word, mutation_config):
 
 def generate_wordlist_logic(base_words, mutation_config, output_filename):
     """
-    The main wordlist generation engine.
-    Writes unique generated passwords to the output file.
-    Returns the count of unique passwords written.
-    Implicitly combines Caps and Leet if both enabled. Affixes are final.
+    Memory-safe wordlist generation engine. Writes all candidates to a temp file,
+    then uses external tools (sort/uniq) for safe, efficient processing.
+    Returns a tuple: (final_count, message_string).
     """
     if not base_words:
-        print("\n[Error] No base words provided for generation.")
-        return 0
+        return 0, "Error: No base words provided for generation."
     if not output_filename:
-        print("\n[Error] Output filename not set.")
-        return 0
+        return 0, "Error: Output filename not set."
 
     print(f"\nStarting wordlist generation for {len(base_words)} base word(s)...")
     print(f"Output will be saved to: {output_filename}")
-    print("Enabled mutations:")
-    enabled_mutations_display = []
-    # Note: "combine_mutations" is removed from this display list
-    for key, display_name in [
-        ("capitalisation", "Capitalisation"), ("leet_speak", "Leet Speak"),
-        ("concatenation", "Concatenation"), ("affixes", "Suffixes/Prefixes")
-    ]:
-        if mutation_config.get(key, False):
-            enabled_mutations_display.append(display_name)
-    if enabled_mutations_display:
-        print(f"  - {', '.join(enabled_mutations_display)}")
-        if mutation_config.get("capitalisation") and mutation_config.get("leet_speak"):
-            print("    (Capitalisation and Leet Speak will be combined)")
-    else:
-        print("  - No mutations enabled (will output base words only).")
+    print("Mode: Memory-Safe (streaming to disk)")
+    affixes_enabled = mutation_config.get("affixes", False)
+    # Use a secure temporary file that is automatically cleaned up after we are done with it
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False, encoding='utf-8') as temp_f:
+        temp_filename = temp_f.name
+        print(f"\nGenerating raw candidates to temporary file: {temp_filename}")
+        
+        raw_candidate_count = 0
+        core_forms_for_concatenation_map = {}
 
-    unique_passwords_to_write = set()
+        # --- Step 1: Process Single Words ---
+        for i, base_word in enumerate(base_words):
+            print(f"\rProcessing single-word forms for: '{base_word}'...", end="")
 
-    # This will store the core (Caps+Leet implicitly combined) forms used for concatenation.
-    core_forms_for_concatenation_map = {}
+            core_variations = _generate_single_word_core_variations(base_word, mutation_config)
+            core_forms_for_concatenation_map[base_word] = core_variations
 
-    print("\nProcessing single-word variations (Caps/Leet, then Affixes)...")
-    for i, base_word in enumerate(base_words):
-        print(f"\rProcessing base word {i+1}/{len(base_words)}: '{base_word}' (Generated: {len(unique_passwords_to_write)})", end="")
-        print()
-        # Step 1a: Generate Core (Caps and/or Leet) Variations
-        # _generate_single_word_core_variations now inherently "combines" caps and leet if both are ON.
-        core_variations = _generate_single_word_core_variations(base_word, mutation_config)
-        core_forms_for_concatenation_map[base_word] = core_variations # Save for concat
+            if affixes_enabled:
+                for core_form in core_variations:
+                    # --- CORRECTION ---
+                    # Call the self-contained _apply_affixes function
+                    final_variations = _apply_affixes(core_form)
+                    # --- END CORRECTION ---
+                    for final_form in final_variations:
+                        temp_f.write(final_form + "\n")
+                        raw_candidate_count += 1
+            else:
+                for core_form in core_variations:
+                    temp_f.write(core_form + "\n")
+                    raw_candidate_count += 1
+        print() # Newline after the single word progress loop
 
-        # Step 1b: Apply Affixes to these Core Variations if 'affixes' is ON
-        if mutation_config.get("affixes", False):
-            forms_with_affixes = set()
-            for core_form in core_variations: # core_variations are (Caps and/or Leet) forms
-                forms_with_affixes.update(_apply_affixes(core_form))
-            unique_passwords_to_write.update(forms_with_affixes)
-        else:
-            # If affixes are OFF, add the core_variations (Caps and/or Leet) directly
-            unique_passwords_to_write.update(core_variations)
-                
-    print(f"\nAfter single-word variations: {len(unique_passwords_to_write)} unique forms.")
+        # --- Step 2: Concatenation ---
+        if mutation_config.get("concatenation", False) and len(base_words) > 1:
+            print("\nProcessing concatenations...")
+            for i_idx in range(len(base_words)):
+                word1_base = base_words[i_idx]
+                print(f"\rConcatenating with '{word1_base}' as first word...", end="")
+                for j_idx in range(len(base_words)):
+                    if i_idx == j_idx and len(base_words) > 1: continue
 
+                    word2_base = base_words[j_idx]
+                    
+                    forms1 = core_forms_for_concatenation_map.get(word1_base, [word1_base])
+                    forms2 = core_forms_for_concatenation_map.get(word2_base, [word2_base])
 
-    # --- Concatenation ---
-    if mutation_config.get("concatenation", False) and len(base_words) > 1:
-        print("\nProcessing concatenations...")
-        concat_pairs_processed_count = 0
-        for i_idx in range(len(base_words)):
-            for j_idx in range(len(base_words)):
-                # Optional: skip self-concatenation if desired, e.g. if i_idx == j_idx: continue
-                # For this example, let's allow self-concatenation to match previous behavior.
-                # if i_idx == j_idx and len(base_words) > 1: continue # Example skip
+                    for v1 in forms1:
+                        for v2 in forms2:
+                            concatenated_word = v1 + v2
+                            if affixes_enabled:
+                                final_concat_variations = _apply_affixes(concatenated_word)
+                                for final_form in final_concat_variations:
+                                    temp_f.write(final_form + "\n")
+                                    raw_candidate_count += 1
+                            else:
+                                temp_f.write(concatenated_word + "\n")
+                                raw_candidate_count += 1
+            print("\nFinished processing concatenations.")
 
-                word1_base_for_concat = base_words[i_idx]
-                word2_base_for_concat = base_words[j_idx]
-                
-                print(f"\rConcatenating components of '{word1_base_for_concat}' + '{word2_base_for_concat}'...", end="")
-                print()
-                # Use the CORE variations (Caps and/or Leet) generated earlier
-                forms1_for_concat = core_forms_for_concatenation_map.get(word1_base_for_concat, [word1_base_for_concat])
-                forms2_for_concat = core_forms_for_concatenation_map.get(word2_base_for_concat, [word2_base_for_concat])
+    # --- Step 3: Post-Processing the Temp File ---
+    print(f"\nGenerated {raw_candidate_count:,} raw password candidates.")
+    print("Now sorting and removing duplicates using system utilities...")
+    print("This may take some time for very large files.")
 
-                for v1_comp in forms1_for_concat:
-                    for v2_comp in forms2_for_concat:
-                        concatenated_word = v1_comp + v2_comp
-                        
-                        # Apply Affixes to the concatenated string IF 'affixes' is ON
-                        if mutation_config.get("affixes", False):
-                            unique_passwords_to_write.update(_apply_affixes(concatenated_word))
-                        else:
-                            unique_passwords_to_write.add(concatenated_word)
-                        concat_pairs_processed_count +=1
-            
-            print(f"\rConcatenating components of '{word1_base_for_concat}' + ... (Unique total: {len(unique_passwords_to_write)})", end="")
-            print()
-        print(f"\nFinished processing concatenations. Processed ~{concat_pairs_processed_count} potential combined pairs.")
-
-    # --- Writing to File ---
-    print(f"\nAll processing complete. Writing {len(unique_passwords_to_write):,} unique passwords to file...")
-    generated_count = 0 # Initialize before try block
-    try:
-        with open(output_filename, "w", encoding="utf-8") as f:
-            final_list_to_write = list(unique_passwords_to_write)
-            if len(final_list_to_write) < 5_000_000 : # Arbitrary threshold for sorting
-                print("Sorting list before writing...")
-                final_list_to_write.sort()
-
-            for count, password in enumerate(final_list_to_write):
-                f.write(password + "\n")
-                if (count + 1) % 100000 == 0: # Progress update every 100k lines
-                    print(f"\rWrote {count+1:,}/{len(final_list_to_write):,} passwords...", end="")
-
-        generated_count = len(final_list_to_write)
-        print(f"\rSuccessfully wrote {generated_count:,} unique passwords to '{output_filename}'.")
-    except IOError as e:
-        print(f"\n[Error] Failed to write to file '{output_filename}': {e}")
-        return 0
-    except Exception as e:
-        print(f"\n[Error] An unexpected error occurred during file writing: {e}")
-        return 0
+    # Note: This requires 'sort' and 'uniq' to be available in the system's PATH.
+    # This is standard on Linux, macOS, and WSL, but not on vanilla Windows.
+    command = f'sort "{temp_filename}" | uniq > "{output_filename}"'
     
-    return generated_count
+    try:
+        # Using shell=True for the pipe '|' functionality. Use with caution, but necessary here.
+        subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+        
+    except FileNotFoundError:
+        message = "[FATAL ERROR] `sort` or `uniq` command not found. Please ensure these standard utilities are in your system's PATH. The raw temp file has been kept for manual processing."
+        # Don't delete temp_filename in this case, so user can process it.
+        return 0, message
+    except subprocess.CalledProcessError as e:
+        message = f"[FATAL ERROR] Post-processing failed:\n{e.stderr}\nThe raw temp file has been kept for manual processing."
+        # Don't delete temp_filename in this case
+        return 0, message
+    finally:
+        # In case of success, we must clean up the temporary file.
+        if os.path.exists(temp_filename):
+            try:
+                os.remove(temp_filename)
+                print(f"Cleaned up temporary file.")
+            except OSError as e:
+                print(f"[Warning] Could not delete temporary file '{temp_filename}': {e}")
 
-# --- END OF MAJOR CHANGE AREA ---
+    # --- Step 4: Count lines in the final file to get the unique count ---
+    try:
+        with open(output_filename, 'r', encoding='utf-8') as f:
+            final_unique_count = sum(1 for line in f)
+        return final_unique_count, f"Successfully generated {final_unique_count:,} unique passwords."
+    except Exception as e:
+        message = f"Could not count lines in final file, but it was created successfully. Error: {e}"
+        return -1, message # Use a special value to indicate success but count failed
 
-def trigger_wordlist_generation(state): # No change to this function's signature or calls
-    """Handles the TUI option for generating the wordlist."""
-    tui.clear_screen() # Changed from tui.clear_screen
-    print("--- Generate Wordlist ---")
+
+def trigger_wordlist_generation(state):
+    """
+    Calculates an estimate, shows it to the user for confirmation,
+    and then triggers the wordlist generation.
+    """
+    tui.clear_screen()
+    print("--- Generation Preview & Resource Estimate ---\n")
 
     base_words = state.get('words_for_engine', [])
-    mutation_config = state.get('mutation_config', {}) # This config will no longer have 'combine_mutations'
+    mutation_config = state.get('mutation_config', {})
     output_filename = state.get('output_filename', 'wordlist.txt')
 
     if not base_words:
-        print("No words selected for the engine. Cannot generate.")
-        print("Please enter seed words (Option 4) and use other options to configure.")
-        tui.pause() # Changed from tui.pause
-        return
-
-    print(f"Base words for generation: {len(base_words)}")
-    print(f"Mutation config: {mutation_config}") # For debugging, see what's passed
-    print(f"Output file: {output_filename}")
+        print("No words selected for the engine. Cannot generate."); tui.pause(); return
     
-    confirm = input("\nAre you sure you want to start generation? This might take time and disk space. (yes/no): ").strip().lower()
+    # 2. Display the detailed estimates to the user
+    tui.clear_screen()
+    print("--- Generation Preview & Resource Estimate ---\n")
+    estimate.estimate_list_size(state)
+    
+    # 3. Ask for confirmation AFTER showing the estimate
+    confirm = input("\nProceed with generation? (yes/no): ").strip().lower()
     if confirm == 'yes':
-        count = generate_wordlist_logic(base_words, mutation_config, output_filename)
-        if count > 0:
-            print(f"\nGeneration complete. {count} passwords written.")
-            # Here you would call entropy calculation if it's part of the tui.py
-            # entropy_value = calculate_wordlist_char_entropy(output_filename)
-            # if entropy_value is not None: print(f"Entropy: {entropy_value}")
-        else:
-            print("\nGeneration finished, but no passwords were written (or an error occurred).")
+        # 4. Call the actual generation logic
+        count, message = generate_wordlist_logic(base_words, mutation_config, output_filename)
+        print(f"\n{message}")
     else:
         print("\nGeneration cancelled.")
-    tui.pause() # Changed from tui.pause
+    tui.pause()

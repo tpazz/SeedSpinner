@@ -90,7 +90,7 @@ def get_ai_suggestions(system_prompt_content: str, user_prompt_content: str, mod
 def run_ai_brainstorming(state):
     """Triggers AI brainstorming and updates words_for_engine with the combined results."""
     tui.clear_screen()
-    print("--- Run AI Brainstorming ---")
+    print("--- Run AI Brainstorming ---\n")
 
     # Prerequisites check (remains the same)
     if not state['client_ready']:
@@ -134,7 +134,7 @@ def run_ai_brainstorming(state):
 def set_model_name(state):
     """Sets the AI model name (deployment name)."""
     tui.clear_screen()
-    print("--- Set AI Model Name ---")
+    print("--- Set AI Model Name ---\n")
     print("Enter the deployment name of your Azure OpenAI model.")
     current_model = state.get('model_name', 'Not Set')
     new_model = input(f"Model name [Current: {current_model}]: ").strip()
@@ -149,7 +149,7 @@ def set_model_name(state):
 def get_azure_details(state):
     """Prompts user for Azure endpoint and key and initializes client via agent."""
     tui.clear_screen()
-    print("--- Set Azure OpenAI Credentials ---")
+    print("--- Set Azure OpenAI Credentials ---\n")
     endpoint = input(f"Enter Azure Endpoint [Current: {state.get('endpoint', 'Not Set')}]: ")
     key = input(f"Enter Azure API Key [Current: {'******' if state.get('key') else 'Not Set'}]: ")
 

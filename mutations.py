@@ -3,7 +3,7 @@ import tui
 def configure_mutations(state):
     """Allows the user to toggle mutation settings, including all/none commands."""
     tui.clear_screen()
-    print("--- Configure Mutation Options ---")
+    print("--- Configure Mutation Options ---\n")
 
     # Define the available mutations and their keys in the state dictionary
     mutation_options = [
@@ -22,7 +22,7 @@ def configure_mutations(state):
 
     while True:
         tui.clear_screen() # Re-clear and display each time for updated status
-        print("--- Configure Mutation Options ---")
+        print("--- Configure Mutation Options ---\n")
         print("Current Mutation Settings:")
         for i, (display_name, key) in enumerate(mutation_options):
             # Get current status, default to False if key doesn't exist yet

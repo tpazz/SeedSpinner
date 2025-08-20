@@ -4,7 +4,7 @@ import os
 def set_system_prompt(state):
     """Sets the path to the system prompt file."""
     tui.clear_screen()
-    print("--- Set System Prompt File ---")
+    print("--- Set System Prompt File ---\n")
     print("Enter the path to the system prompt file (e.g., CreativePrompt.txt).")
     current_path = state.get('system_prompt_path', 'Not Set')
     new_path = input(f"File path [Current: {current_path}]: ").strip()
@@ -42,7 +42,7 @@ def read_prompt_file(filepath: str) -> str | None:
 def set_output_filename(state):
     """Sets the output filename. (Identical to previous version)"""
     tui.clear_screen()
-    print("--- Set Output Filename ---")
+    print("--- Set Output Filename ---\n")
     current_name = state['output_filename']
     new_name = input(f"Enter filename [Current: {current_name}]: ").strip()
     if new_name:

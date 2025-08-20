@@ -3,7 +3,7 @@ import tui
 def get_seed_words(state):
     """Prompts user for seed words."""
     tui.clear_screen()
-    print("--- Enter Seed Words ---")
+    print("--- Enter Seed Words ---\n")
     print("Enter your seed words, separated by commas.")
     current_words = ", ".join(state['seed_words'])
     print(f"Current: {current_words}")
@@ -18,24 +18,10 @@ def get_seed_words(state):
         print("No changes made.")
     tui.pause()
 
-
-def set_output_filename(state):
-    """Sets the output filename. (Identical to previous version)"""
-    tui.clear_screen()
-    print("--- Set Output Filename ---")
-    current_name = state['output_filename']
-    new_name = input(f"Enter filename [Current: {current_name}]: ").strip()
-    if new_name:
-        state['output_filename'] = new_name
-        print(f"Output filename set to: {state['output_filename']}")
-    else:
-        print("No changes made.")
-    tui.pause()    
-
 def review_filter_suggestions(state):
     """Allows user to review and refine the current words_for_engine list."""
     tui.clear_screen()
-    print("--- Review & Filter Words for Engine ---")
+    print("--- Review & Filter Words for Engine ---\n")
 
     # --- Key Change Below ---
     # The list to display and filter is ALWAYS the current words_for_engine

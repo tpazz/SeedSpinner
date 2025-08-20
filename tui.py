@@ -22,6 +22,7 @@ def display_main_menu(state):
     print("=============================================")
     print("      AI-Enhanced Password List Generator    ")
     print("=============================================")
+    print()   
     print(f" Status:")
     print(f"  - Azure Endpoint Set: {'Yes' if state['endpoint'] else 'No'}")
     print(f"  - Azure Key Set:      {'Yes' if state['key'] else 'No'}")
@@ -35,7 +36,9 @@ def display_main_menu(state):
     enabled_muts = [key for key, enabled in config.items() if enabled]
     print(f"  - Enabled Mutations:  {len(enabled_muts)} ({', '.join(enabled_muts)})")
     print(f"  - Output File:        {state['output_filename']}")
+    print()   
     print("---------------------------------------------")
+    print()    
     print(" Main Menu:")
     print("  1. Set Azure Endpoint & Key")
     print("  2. Set System Prompt File")
@@ -44,12 +47,13 @@ def display_main_menu(state):
     print("  5. Run AI Brainstorming (Requires 1, 2, 4)")
     print("  6. Review/Filter AI Suggestions")
     print("  7. Configure Mutations")  
-    print("  8. Estimate List Size")    
-    print("  9. Set Output Filename")
-    print("  10. >> GENERATE WORDLIST <<")
+    print("  8. Set Output Filename")
+    print("  9. Generate Wordlist")
     print()   
-    print("  11. EXIT")
+    print(" [type 'exit' to gracefully exit the program]")
+    print()   
     print("=============================================")
+    print()   
 
 if __name__ == "__main__":
     # Initial state
@@ -89,12 +93,10 @@ if __name__ == "__main__":
         elif choice == '7':
             mutations.configure_mutations(app_state)
         elif choice == '8':
-            estimate.estimate_list_size(app_state)
-        elif choice == '9':
             fileIO.set_output_filename(app_state)
-        elif choice == '10':
+        elif choice == '9':
             generate.trigger_wordlist_generation(app_state)
-        elif choice == '11':
+        elif choice == 'exit':
             print("Exiting...")
             sys.exit(0)
         else:
