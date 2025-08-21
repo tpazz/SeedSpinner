@@ -5,6 +5,10 @@ SeedSpinner is a powerful and flexible password list generation tool designed fo
 **Disclaimer:**
 This tool is intended for **educational purposes and authorized security testing only**. Using this tool to attempt unauthorized access to any system or account is illegal and unethical. Always obtain explicit, written permission before using this tool on any system you do not own. The developers assume no liability and are not responsible for any misuse or damage caused by this program.
 
+### Inspiration for this tool came from the TV show Mr. Robot using the [elpscrk](https://github.com/D4Vinci/elpscrk) tool; and is the successor project to my [dissertation](https://github.com/tpazz/Password-Security-Gamification). 
+
+![1749035627916](https://github.com/user-attachments/assets/e9b61934-2133-48b3-9281-560180847671)
+
 ## Features
 
 *   **Seed Word Input:** Start with a list of base words relevant to your target.
@@ -28,103 +32,23 @@ This tool is intended for **educational purposes and authorized security testing
     *   Provides an approximate calculation of the potential wordlist size (lines and file size) before generation.
     *   Shows a small preview of ~10-20 sample generated passwords.
     *   Calculates an approximate character entropy for the previewed sample.
-*   **Post-Generation Analysis:**
-    *   Calculates and displays character distribution entropy for the final generated wordlist.
-    *   Displays the "list entropy" (log2 of the number of unique passwords generated).
-
-## How the Generation Logic Works (Simplified)
-
-1.  **Seed Words:** You provide initial words.
-2.  **AI Brainstorming (Optional):** Azure OpenAI suggests related terms. You filter these to create an expanded list of base words.
-3.  **For each Base Word (Single Word Variations):**
-    *   **Core Variations:** The base word undergoes Capitalisation and/or Leet Speak. If both are enabled, Leet Speak is applied to capitalized forms.
-    *   **Affix Application:** If Affixes are enabled, they are applied to these "Core Variations."
-    *   These fully mutated single words are added to the final list.
-4.  **Concatenation (If Enabled):**
-    *   Uses the "Core Variations" (Caps/Leet forms, *before* single-word affixes were applied to them) of each base word as components.
-    *   Combines components from every ordered pair of base words (e.g., `CoreVar(WordA) + CoreVar(WordB)`).
-    *   **Affix Application:** If Affixes are enabled, they are applied to these newly formed concatenated strings.
-    *   These fully mutated concatenated words are added to the final list.
-5.  **Output:** All unique generated passwords are saved to a file.
+*   **Memory-Safe Wordlist Generation**
+    *   Memory-Safe Generation: Handles extremely large wordlists without crashing by streaming candidates to a temporary file, avoiding high RAM usage.
+    *   Leverages System Utilities: Uses optimized command-line tools (sort, uniq) for efficient, disk-based deduplication and sorting of massive lists.
 
 ## Prerequisites
 
 *   Python 3.x
-*   `openai` Python library (`pip install openai`)
-*   An active Azure OpenAI account and resource with a deployed model (e.g., GPT-3.5-turbo, GPT-4). You will need:
+*   If using AI brainstorming (optional):
     *   Your Azure OpenAI Endpoint URL.
     *   Your Azure OpenAI API Key.
     *   The Deployment Name of your model.
 
-## Setup & Usage
-
-1.  **Clone/Download:** Get the `tui.py` and `ai_agent.py` (and any prompt files like `prompt_concise.txt`) into the same directory.
-2.  **Install Dependencies:**
-
-    ```bash
-    pip install openai
-    ```
-4.  **Prepare Prompt Files (Optional but Recommended for AI):**
-    *   Create text files for your system prompts (e.g., `prompt_concise.txt`, `prompt_explanatory.txt`). Examples have been provided during development.
-5.  **Run the Tool:**
-
-    ```bash
-    python tui.py
-    ```
-7.  **Follow the TUI Menu:**
-    *   **1. Set Azure Endpoint & Key:** Enter your Azure OpenAI credentials. The client will attempt to initialize.
-    *   **2. Set System Prompt File:** Specify the path to your desired system prompt file for AI brainstorming (e.g., `prompt_concise.txt`).
-    *   **3. Set AI Model Name:** Enter your Azure OpenAI model deployment name.
-    *   **4. Enter/Edit Seed Words:** Input your comma-separated base words (e.g., `companyname, product, location2024`).
-    *   **5. Run AI Brainstorming:** If steps 1-4 are configured, this will call the AI to expand your seed words.
-    *   **6. Review/Filter AI Suggestions:** Select which of the (seed + AI-suggested) words you want to use for generation.
-    *   **7. Configure Mutations:** Toggle Capitalisation, Leet Speak, Concatenation, and Affixes ON or OFF.
-    *   **8. Estimate List Size:** Get an estimate of lines, file size, and a preview of generated words + preview entropy.
-    *   **9. Set Output Filename:** Specify the name for your wordlist file (default: `wordlist.txt`).
-    *   **10. GENERATE WORDLIST:** Start the main generation process.
-    *   **11. Exit:** Close the application.
-
-## Example Workflow (Without AI)
-
-1.  Run `python tui.py`.
-2.  Select **4. Enter/Edit Seed Words** -> enter `service, admin, 2023`
-3.  Select **7. Configure Mutations** -> enable Capitalisation, Affixes.
-4.  Select **8. Estimate List Size** -> review the preview and estimate.
-5.  Select **9. Set Output Filename** -> enter `my_simple_list.txt`
-6.  Select **10. GENERATE WORDLIST**.
-
-## Example Workflow (With AI)
-
-1.  Run `python tui.py`.
-2.  Select **1. Set Azure Endpoint & Key** -> enter your details.
-3.  Select **2. Set System Prompt File** -> enter `prompt_creative.txt` (assuming you have it).
-4.  Select **3. Set AI Model Name** -> enter your deployment name.
-5.  Select **4. Enter/Edit Seed Words** -> enter `targetcorp, projectX`
-6.  Select **5. Run AI Brainstorming**.
-7.  Select **6. Review/Filter AI Suggestions** -> refine the list of words from AI.
-8.  Select **7. Configure Mutations** -> enable Capitalisation, Leet Speak, Concatenation, Affixes.
-9.  Select **8. Estimate List Size**.
-10. Select **10. GENERATE WORDLIST**.
-
-## Interpreting Entropy Values
-
-*   **Character Distribution Entropy (of Preview / Final List):**
-    *   Measures the average information content (uncertainty) per character *within the generated passwords*.
-    *   A higher value (e.g., closer to 4-6 bits/char) suggests more character variety (uppercase, lowercase, numbers, symbols) and a more even distribution of those characters.
-    *   This is an indicator of the *character complexity* of the list, not a direct measure of overall password strength.
-*   **List Entropy (log2 of unique passwords in the final list):**
-    *   Indicates the size of your generated password set in bits.
-    *   If an attacker knew your password was *definitely* from this list and could test optimally, this is related to the number of guesses.
-    *   **This is NOT the average password strength against general guessing attacks.** It only applies if the attack is constrained to this specific list.
-
-## Future Enhancements (Ideas)
-
-*   More sophisticated Leet Speak rule engine.
-*   User-configurable affix lists (numbers, symbols, common words, dates).
-*   Additional mutation types (reversal, character repetition, keyboard shifts, etc.).
-*   Option to define password length constraints or character set requirements.
-*   More advanced memory management for generating extremely large lists (e.g., disk-based processing).
-*   GUI instead of TUI.
+## Usage
+  
+ ```bash
+ python tui.py
+ ```
 
 Core Logic Flow
 ---
