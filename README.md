@@ -2,6 +2,8 @@
 
 SeedSpinner is a powerful and flexible password list generation tool designed for security professionals and researchers. It leverages both systematic mutation techniques and AI-powered brainstorming (via Azure OpenAI) to create comprehensive and contextually relevant wordlists for password strength testing and analysis.
 
+SeedSpinner excels at creating deep, targeted wordlists for password recovery and security auditing. Its core strength is performing exhaustive, combinatorial mutations on a small set of high-probability "seed" words. If you have intelligence on what a password might be based on (e.g., a pet's name, a favorite team, a company project), this tool is designed to find the exact, complex permutation the user created.
+
 **Disclaimer:**
 This tool is intended for **educational purposes and authorized security testing only**. Using this tool to attempt unauthorized access to any system or account is illegal and unethical. Always obtain explicit, written permission before using this tool on any system you do not own. The developers assume no liability and are not responsible for any misuse or damage caused by this program.
 
