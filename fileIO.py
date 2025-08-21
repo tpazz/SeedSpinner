@@ -2,7 +2,6 @@ import tui
 import os
 
 def set_system_prompt(state):
-    """Sets the path to the system prompt file."""
     tui.clear_screen()
     print("--- Set System Prompt File ---\n")
     print("Enter the path to the system prompt file (e.g., CreativePrompt.txt).")
@@ -24,7 +23,6 @@ def set_system_prompt(state):
     tui.pause()
 
 def read_prompt_file(filepath: str) -> str | None:
-    """Reads content from a given file path."""
     try:
         # Basic check to prevent reading unexpected files, enhance as needed
         if not filepath.endswith(".txt"):
@@ -40,7 +38,6 @@ def read_prompt_file(filepath: str) -> str | None:
         return None    
 
 def set_output_filename(state):
-    """Sets the output filename. (Identical to previous version)"""
     tui.clear_screen()
     print("--- Set Output Filename ---\n")
     current_name = state['output_filename']

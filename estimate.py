@@ -7,10 +7,7 @@ import tui
 # --- Helper Functions (Keep these as they are) ---
 
 def _generate_simple_preview(base_words, mutation_config, max_preview=20):
-    """
-    Generates a robust, varied preview list of up to max_preview passwords
-    by sampling each enabled mutation type.
-    """
+
     preview_list = set()
 
     if not base_words:
@@ -67,9 +64,7 @@ def _generate_simple_preview(base_words, mutation_config, max_preview=20):
     return sorted(list(preview_list))[:max_preview]
 
 def _calculate_string_list_char_entropy(string_list):
-    # This function is for the preview entropy, its logic is fine.
-    # (Your existing _calculate_string_list_char_entropy code goes here)
-    # ...
+
     if not string_list: return 0.0
     char_counts = Counter("".join(string_list))
     total_chars = sum(char_counts.values())
@@ -77,13 +72,8 @@ def _calculate_string_list_char_entropy(string_list):
     entropy = -sum((count/total_chars) * math.log2(count/total_chars) for count in char_counts.values())
     return entropy
 
-# --- New, Accurate Estimation Engine (Keep these as they are) ---
-
 def _estimate_leet_outputs(word, mutation_config):
-    """
-    Analyzes a word to provide a more accurate upper bound of leet speak variations
-    by calculating the combinatorial permutations of enabled substitutions.
-    """
+
     if not mutation_config.get("leet_speak", False):
         return 1
 
@@ -101,10 +91,7 @@ def _estimate_leet_outputs(word, mutation_config):
     return total_combinations
 
 def _calculate_upper_bound_estimate(base_words, mutation_config):
-    """
-    Calculates a more pessimistic and realistic upper bound for lines, file size, and memory.
-    This function mirrors the main generation logic's multiplicative nature.
-    """
+
     num_base_words = len(base_words)
     if num_base_words == 0:
         return {'lines': 0, 'size_bytes': 0, 'memory_bytes': 0}
@@ -151,12 +138,7 @@ def _calculate_upper_bound_estimate(base_words, mutation_config):
         'memory_bytes': estimated_memory_for_set_bytes
     }    
 
-# --- START OF FIX: Replace your old `estimate_list_size` with this corrected version ---
-
 def estimate_list_size(state):
-    """
-    Main TUI function. It calls the accurate estimation engine and then formats the output.
-    """
 
     base_words = state.get('words_for_engine', [])
     mutation_config = state.get('mutation_config', {})
@@ -166,7 +148,6 @@ def estimate_list_size(state):
         tui.pause()
         return
 
-    # --- Display Info (same as your old function) ---
     print(f"Estimating based on {len(base_words)} base word(s) in 'Words for Engine'.")
     print("Enabled mutations:")
     enabled_mutations_display = []
@@ -182,7 +163,6 @@ def estimate_list_size(state):
         print("  - No mutations enabled (list will contain base words only).")
     print("\n-------------------------------------")
 
-    # --- Preview Generation (same as your old function) ---
     preview_passwords = _generate_simple_preview(base_words, mutation_config, max_preview=20)
     if preview_passwords:
         print("\nPreview of potential generated passwords (sample unique examples):")
@@ -196,10 +176,8 @@ def estimate_list_size(state):
         print("Preview: No example passwords generated.")
     print("\n-------------------------------------")
     
-    # --- HERE IS THE FIX: Call the correct, accurate estimation engine ---
     estimates = _calculate_upper_bound_estimate(base_words, mutation_config)
 
-    # --- Display the results from the accurate engine ---
     print(f"\n~ Max Passwords (upper bound): ~{int(estimates['lines']):,}")
     
     # File size formatting
@@ -211,5 +189,3 @@ def estimate_list_size(state):
     print(f"~ Max File Size (upper bound): ~{size_display}")
     print("\n-------------------------------------")
     tui.pause()
-
-# --- END OF FIX ---

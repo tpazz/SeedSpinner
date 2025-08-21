@@ -26,7 +26,7 @@ def display_main_menu(state):
     print(f" Status:")
     print(f"  - Azure Endpoint Set: {'Yes' if state['endpoint'] else 'No'}")
     print(f"  - Azure Key Set:      {'Yes' if state['key'] else 'No'}")
-    print(f"  - AI Client Ready:    {'Yes' if state['client_ready'] else 'No'}") # Use the flag
+    print(f"  - AI Client Ready:    {'Yes' if state['client_ready'] else 'No'}") 
     print(f"  - System Prompt File: {state['system_prompt_path']}")
     print(f"  - AI Model:           {state['model_name']}")
     print(f"  - Seed Words:         {len(state['seed_words'])} ({', '.join(state['seed_words'][:5])}{'...' if len(state['seed_words']) > 5 else ''})")
