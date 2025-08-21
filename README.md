@@ -54,58 +54,47 @@ Core Logic Flow
 ---
 ```mermaid
 graph TD
-    A[Start: User provides Base Words & Mutation Config] --> B{Load Base Words};
+    subgraph "1. Initialization"
+        A[Start: User provides Base Words & Config] --> B[Create empty Temp File on disk];
+    end
 
-    B --> C{For each Base Word};
-    C --> D_InitForms[Initialize CoreForms = BaseWord];
+    subgraph "2. Single Word Processing"
+        B --> C{For each Base Word};
+        C --> D[Generate Core Variations - Caps & Leet Combined];
+        D --> E[Store Core Variations for Concatenation];
+        E --> F[Apply Final Transformations, e.g. Affixes];
+        F --> G((Write Single-Word Variations to Temp File));
+        G --> C;
+    end
 
-    %% --- Single Word Core Variation Generation (Caps and/or Leet) ---
-    D_InitForms --> E_Caps{Capitalisation ON?};
-    E_Caps -- Yes --> F_ApplyCaps[Apply Capitalisation to CoreForms];
-    F_ApplyCaps --> G_LeetCheck{Leet Speak ON?};
-    E_Caps -- No --> G_LeetCheck;
+    C -- All Base Words Processed --> H{Concatenation Enabled?};
 
-    G_LeetCheck -- Yes --> H_ApplyLeet[Apply Leet Speak to CoreForms];
-    H_ApplyLeet --> I_CoreVariationsDone[CoreForms now contain Caps/Leet variations];
-    G_LeetCheck -- No --> I_CoreVariationsDone;
+    subgraph "3. Concatenation Processing"
+        H -- Yes --> I{For each ordered pair of Base Words};
+        I --> J[Retrieve Core Variations for the pair];
+        J --> K[Combine all Component Pairs];
+        K --> L[Apply Final Transformations to Combined String];
+        L --> M((Write Concatenated Variations to Temp File));
+        M --> I;
+    end
 
-    I_CoreVariationsDone --> J_StoreForConcat[Store CoreForms for Concatenation Map];
-    J_StoreForConcat --> K_AffixCheckSingle{Affixes ON?};
-
-    K_AffixCheckSingle -- Yes --> L_ApplyAffixSingle[Apply Affixes to CoreForms];
-    L_ApplyAffixSingle --> M_AddSingleToOutput[Add results from L_ApplyAffixSingle to Final Output Set];
-    K_AffixCheckSingle -- No --> M_AddSingleToOutput[Add CoreForms no affixes to Final Output Set];
-
-    M_AddSingleToOutput --> C_Loop_End;
-
-    C_Loop_End -. All Base Words Processed for Single Forms .-> N_ConcatCheck;
-    C --> C_Loop_End; 
-
-    N_ConcatCheck{Concatenation ON?};
-    N_ConcatCheck -- No --> Z[End: Final Output Set is the Wordlist];
-
-    N_ConcatCheck -- Yes --> O_PrepConcat[Retrieve CoreForms for Concatenation from Map];
-    O_PrepConcat --> P_LoopWord1{For each BaseWord1 from Map};
-    P_LoopWord1 --> Q_LoopWord2{For each BaseWord2 from Map can be same as BaseWord1};
+    I -- All Pairs Processed --> N_Finalize;
+    H -- No --> N_Finalize;
     
-    Q_LoopWord2 --> R_GetForms[form1 = CoreForms_BaseWord1\nform2 = CoreForms_BaseWord2];
-    R_GetForms --> S_IterateForms1{For each v1 in form1};
-    S_IterateForms1 --> T_IterateForms2{For each v2 in form2};
-    T_IterateForms2 --> U_Concatenate[ConcatenatedString = v1 + v2];
+    subgraph "4. Finalization"
+        N_Finalize[Process Temp File];
+        N_Finalize --> P[Run 'sort' and 'uniq' on Temp File];
+        P --> Q[Save result to Final Wordlist];
+        Q --> R[Delete Temp File];
+    end
 
-    U_Concatenate --> V_AffixCheckConcat{Affixes ON?};
-    V_AffixCheckConcat -- Yes --> W_ApplyAffixConcat[Apply Affixes to ConcatenatedString];
-    W_ApplyAffixConcat --> X_AddConcatToOutput[Add results from W_ApplyAffixConcat to Final Output Set];
-    V_AffixCheckConcat -- No --> X_AddConcatToOutput[Add ConcatenatedString no affixes to Final Output Set];
-    
-    X_AddConcatToOutput --> T_IterateForms2; 
-    T_IterateForms2 -- All v2 Processed --> S_IterateForms1;
-    S_IterateForms1 -- All v1 Processed --> Q_LoopWord2;
-    Q_Loop_End -- All BaseWords2 Processed --> P_LoopWord1;
-    P_LoopWord1 -- All BaseWords1 Processed for Concat --> Z;
+    R --> Z[End];
 
-    Z[End: Final Output Set is the Wordlist];
+    %% --- Styling ---
+    %% Define a single class for the dark theme
+    classDef darkTheme fill:#222,stroke:#FFF,stroke-width:2px,color:#FFF;
 
-    
+    %% Apply the dark theme class to ALL nodes in the diagram
+    class A,B,C,D,E,F,G,H,I,J,K,L,M,N_Finalize,P,Q,R,Z darkTheme;
     
 ```
