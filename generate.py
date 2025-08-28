@@ -47,63 +47,73 @@ def _apply_leet_speak(word):
     return list(forms)
 
 
-def _apply_affixes(word):
+from datetime import datetime # Make sure this import is at the top of your file
 
+def _apply_affixes(word):
+    """
+    Applies common suffixes, including single and chained (number/symbol) combinations.
+    Prefixes are excluded as per user request.
+    """
+    # --- Define Affix Groups ---
     current_year = datetime.now().year
     years_to_generate = 50
     
-    # Group 1: Numbers & Years
     full_years = [str(year) for year in range(current_year, current_year - years_to_generate - 1, -1)]
     two_digit_years = [datetime(year, 1, 1).strftime('%y') for year in range(current_year, current_year - years_to_generate - 1, -1)]
     simple_numbers = [str(i) for i in range(10)] + ["0" + str(i) for i in range(10)] + ["123", "12345"]
     
     numeric_affixes = full_years + two_digit_years + simple_numbers
-
     symbol_affixes = ["!", "@", "#", "$", "%", "^", "&", "*", "?", "_", "-"]
 
+    # --- Generation Logic ---
     final_variations = {word} # Start with the base word
 
-    # 1. Apply single prefixes and suffixes from ALL groups
+    # 1. Apply SINGLE suffixes from all groups
     all_simple_affixes = numeric_affixes + symbol_affixes
     for affix in all_simple_affixes:
-        final_variations.add(word + affix) # e.g., liverpool05
-        # final_variations.add(affix + word) # e.g., 05liverpool
-        final_variations.add(word + "!")   # e.g., liverpool!
+        final_variations.add(word + affix) # e.g., liverpool05 or liverpool!
 
-    # 2. Create chained SUFFIXES (Number -> Symbol)
-    # Take each numeric suffix, add it to the word, then add a symbol
-    for num_suf in numeric_affixes:
-        word_with_num_suf = word + num_suf
-        for sym_suf in symbol_affixes:
-            final_variations.add(word_with_num_suf + sym_suf) # e.g., liverpool05!
+    # 2. Apply CHAINED SUFFIXES (Pattern: wordNUMBERsymbol)
+    for num in numeric_affixes:
+        word_with_num = word + num
+        for sym in symbol_affixes:
+            final_variations.add(word_with_num + sym) # e.g., liverpool05!
 
-    # 3. Create chained PREFIXES (Symbol -> Number) - a common pattern
-    # Take each symbol prefix, add it to the word, then add a number
-    # for sym_pre in symbol_affixes:
-    #     word_with_sym_pre = sym_pre + word
-    #     for num_pre in numeric_affixes:
-    #         final_variations.add(num_pre + word_with_sym_pre) # e.g., 05!liverpool
-
-    for sym_suf in symbol_affixes:
-        word_with_sym_suf = word + sym_suf
-        for num_suf in numeric_affixes:
-            final_variations.add(word_with_sym_suf + num_suf) # e.g., liverpool!05
+    # 3. Apply CHAINED SUFFIXES (Pattern: wordSYMBOLnumber)
+    # This is the one that generates the password you want, e.g., P@$$w0rd@123
+    for sym in symbol_affixes:
+        word_with_sym = word + sym
+        for num in numeric_affixes:
+            final_variations.add(word_with_sym + num) # e.g., liverpool!05
 
     return list(final_variations)
 
 def _generate_single_word_core_variations(base_word, mutation_config):
-
+    """
+    Generates Capitalisation and/or Leet Speak variations.
+    If both are ON, Leet is applied to Capitalized versions.
+    Affixes are NOT handled by this function.
+    This function ALWAYS "combines" Caps and Leet if both are enabled.
+    """
+    # --- START OF FIX ---
+    # Initialize the set BEFORE the 'if' statement to guarantee it exists.
+    # The default state should include the original word and its lowercase version.
+    forms_after_caps = {base_word.lower(), base_word}
+    
+    # Now, if capitalisation is on, we UPDATE the existing set.
     if mutation_config.get("capitalisation", False):
         forms_after_caps.update(_apply_capitalisation(base_word))
-    else:
-        forms_after_caps = {base_word.lower(), base_word} 
+    # --- END OF FIX ---
 
+    # The rest of the function can now safely use 'forms_after_caps' because
+    # it is guaranteed to exist.
     final_core_forms = set()
     if mutation_config.get("leet_speak", False):
         for form_cap in forms_after_caps:
             final_core_forms.update(_apply_leet_speak(form_cap))
     else:
-        final_core_forms.update(forms_after_caps) 
+        # No leet speak, so use the forms after caps (or just the base forms if caps was off)
+        final_core_forms.update(forms_after_caps)
 
     return list(final_core_forms)
 
