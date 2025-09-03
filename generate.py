@@ -1,58 +1,60 @@
-import itertools # For more advanced combinations if needed later, though not strictly used here yet
+import itertools
 import tui
-from datetime import datetime # Make sure to add this import at the top of your file
+from datetime import datetime
 import tempfile
 import subprocess
 import os
 import estimate
 
+# --- Helper Mutation Functions ---
+# These functions perform a single type of mutation on a given word.
+
 def _apply_capitalisation(word):
+    """Generates a set of common capitalisation variations for a single word."""
     variations = {word.lower(), word.title(), word.upper()}
-    variations.add(word) # Add the original form as well
+    variations.add(word) # Ensure the original form is included
     return list(variations)
 
 def _apply_leet_speak(word):
+    """Generates leet speak variations using a recursive approach for combinatorial substitutions."""
     subs = {
-        'a': ['@', '4'], 'A': ['@', '4'], 
+        'a': ['@', '4'], 'A': ['@', '4'],
         'e': ['3'],      'E': ['3'],
         'i': ['1', '!'], 'I': ['1', '!'],
         'o': ['0'],      'O': ['0'],
         's': ['$', '5'], 'S': ['$', '5'],
         't': ['7'],      'T': ['7'],
     }
-    forms = {word} # Always include the original form
+    forms = {word} # Always include the original, un-leeted word
 
+    # This recursive function explores all combinations of enabled substitutions.
     def generate_leets_recursive(current_word_list, index):
         if index == len(current_word_list):
             forms.add("".join(current_word_list))
             return
 
         original_char = current_word_list[index]
-        generate_leets_recursive(list(current_word_list), index + 1) 
+        # Explore paths without substituting the current character
+        generate_leets_recursive(list(current_word_list), index + 1)
 
+        # Explore paths WITH substitutions for the current character
         if original_char in subs:
             for sub_char in subs[original_char]:
                 current_word_list[index] = sub_char
-                generate_leets_recursive(list(current_word_list), index + 1) 
-                current_word_list[index] = original_char # Backtrack
+                generate_leets_recursive(list(current_word_list), index + 1)
+                current_word_list[index] = original_char # Backtrack for other possibilities
     
-    if any(c in subs for c in word): 
+    # Start the recursion only if there are characters in the word that can be substituted.
+    if any(c in subs for c in word):
         generate_leets_recursive(list(word), 0)
 
-    # if 'a' in word.lower(): forms.add(word.replace('a','@').replace('A','@'))
-    # if 'e' in word.lower(): forms.add(word.replace('e','3').replace('E','3'))
-    # if 'o' in word.lower(): forms.add(word.replace('o','0').replace('O','0'))
-    # if 'i' in word.lower(): forms.add(word.replace('i','1').replace('I','1'))
-    # if 's' in word.lower(): forms.add(word.replace('s','$').replace('S','$'))
     return list(forms)
 
 
-from datetime import datetime # Make sure this import is at the top of your file
-
 def _apply_affixes(word):
     """
-    Applies common suffixes, including single and chained (number/symbol) combinations.
-    Prefixes are excluded as per user request.
+    Applies a comprehensive set of hardcoded affixes, including dynamically generated years
+    and chained (number/symbol) combinations.
     """
     # --- Define Affix Groups ---
     current_year = datetime.now().year
@@ -65,71 +67,67 @@ def _apply_affixes(word):
     numeric_affixes = full_years + two_digit_years + simple_numbers
     symbol_affixes = ["!", "@", "#", "$", "%", "^", "&", "*", "?", "_", "-"]
 
-    # --- Generation Logic ---
     final_variations = {word} # Start with the base word
 
     # 1. Apply SINGLE suffixes from all groups
     all_simple_affixes = numeric_affixes + symbol_affixes
     for affix in all_simple_affixes:
-        final_variations.add(word + affix) # e.g., liverpool05 or liverpool!
+        final_variations.add(word + affix)
 
     # 2. Apply CHAINED SUFFIXES (Pattern: wordNUMBERsymbol)
     for num in numeric_affixes:
         word_with_num = word + num
         for sym in symbol_affixes:
-            final_variations.add(word_with_num + sym) # e.g., liverpool05!
+            final_variations.add(word_with_num + sym)
 
     # 3. Apply CHAINED SUFFIXES (Pattern: wordSYMBOLnumber)
-    # This is the one that generates the password you want, e.g., P@$$w0rd@123
     for sym in symbol_affixes:
         word_with_sym = word + sym
         for num in numeric_affixes:
-            final_variations.add(word_with_sym + num) # e.g., liverpool!05
+            final_variations.add(word_with_sym + num)
 
     return list(final_variations)
 
 def _generate_single_word_core_variations(base_word, mutation_config):
     """
-    Generates Capitalisation and/or Leet Speak variations.
-    If both are ON, Leet is applied to Capitalized versions.
-    Affixes are NOT handled by this function.
-    This function ALWAYS "combines" Caps and Leet if both are enabled.
+    Creates the "core" variations of a word by handling Capitalisation and Leet Speak.
+    If both are enabled, their effects are implicitly combined. Affixes are NOT handled here.
     """
-    # --- START OF FIX ---
-    # Initialize the set BEFORE the 'if' statement to guarantee it exists.
-    # The default state should include the original word and its lowercase version.
+    # Initialize the set with the base word and its lowercase to ensure it always exists.
     forms_after_caps = {base_word.lower(), base_word}
     
-    # Now, if capitalisation is on, we UPDATE the existing set.
+    # If capitalisation is on, update the set with more variations.
     if mutation_config.get("capitalisation", False):
         forms_after_caps.update(_apply_capitalisation(base_word))
-    # --- END OF FIX ---
 
-    # The rest of the function can now safely use 'forms_after_caps' because
-    # it is guaranteed to exist.
+    # Apply leet speak to all forms generated so far (base word and/or capitalized versions).
     final_core_forms = set()
     if mutation_config.get("leet_speak", False):
         for form_cap in forms_after_caps:
             final_core_forms.update(_apply_leet_speak(form_cap))
     else:
-        # No leet speak, so use the forms after caps (or just the base forms if caps was off)
+        # If no leet speak, the core forms are just the capitalized forms.
         final_core_forms.update(forms_after_caps)
 
     return list(final_core_forms)
 
 
 def generate_wordlist_logic(base_words, mutation_config, output_filename):
-
-    if not base_words:
-        return 0, "Error: No base words provided for generation."
-    if not output_filename:
-        return 0, "Error: Output filename not set."
+    """
+    The main memory-safe generation engine. It orchestrates the entire mutation pipeline,
+    streams all candidates to a temporary file, and uses external system utilities
+    (sort/uniq) for safe, efficient deduplication and final output.
+    """
+    if not base_words: return 0, "Error: No base words provided for generation."
+    if not output_filename: return 0, "Error: Output filename not set."
 
     print(f"\nStarting wordlist generation for {len(base_words)} base word(s)...")
     print(f"Output will be saved to: {output_filename}")
     print("Mode: Memory-Safe (streaming to disk)")
+    
     affixes_enabled = mutation_config.get("affixes", False)
-    # Use a secure temporary file that is automatically cleaned up after we are done with it
+    
+    # Create a temporary file to store all generated candidates, avoiding memory overload.
     with tempfile.NamedTemporaryFile(mode='w+', delete=False, encoding='utf-8') as temp_f:
         temp_filename = temp_f.name
         print(f"\nGenerating raw candidates to temporary file: {temp_filename}")
@@ -141,9 +139,12 @@ def generate_wordlist_logic(base_words, mutation_config, output_filename):
         for i, base_word in enumerate(base_words):
             print(f"\rProcessing single-word forms for: '{base_word}'...", end="")
 
+            # Generate the core Caps/Leet variations for the current base word.
             core_variations = _generate_single_word_core_variations(base_word, mutation_config)
+            # Store these core forms in a map to be used as components for concatenation later.
             core_forms_for_concatenation_map[base_word] = core_variations
 
+            # Apply final transformations (affixes) and write to the temp file.
             if affixes_enabled:
                 for core_form in core_variations:
                     final_variations = _apply_affixes(core_form)
@@ -154,7 +155,7 @@ def generate_wordlist_logic(base_words, mutation_config, output_filename):
                 for core_form in core_variations:
                     temp_f.write(core_form + "\n")
                     raw_candidate_count += 1
-        print() 
+        print() # Add a newline to finalize the progress bar.
 
         # --- Step 2: Concatenation ---
         if mutation_config.get("concatenation", False) and len(base_words) > 1:
@@ -167,9 +168,11 @@ def generate_wordlist_logic(base_words, mutation_config, output_filename):
 
                     word2_base = base_words[j_idx]
                     
+                    # Retrieve the pre-generated core variations for the pair of words.
                     forms1 = core_forms_for_concatenation_map.get(word1_base, [word1_base])
                     forms2 = core_forms_for_concatenation_map.get(word2_base, [word2_base])
 
+                    # Create all combinations of the component variations.
                     for v1 in forms1:
                         for v2 in forms2:
                             concatenated_word = v1 + v2
@@ -184,25 +187,23 @@ def generate_wordlist_logic(base_words, mutation_config, output_filename):
             print("\nFinished processing concatenations.")
 
     # --- Step 3: Post-Processing the Temp File ---
+    # This step uses powerful system commands to handle massive files efficiently.
     print(f"\nGenerated {raw_candidate_count:,} raw password candidates.")
     print("Now sorting and removing duplicates using system utilities...")
-    print("This may take some time for very large files.")
 
     command = f'sort "{temp_filename}" | uniq > "{output_filename}"'
     
     try:
+        # Execute the command. `shell=True` is needed for the pipe `|` to work.
         subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-        
     except FileNotFoundError:
-        message = "[FATAL ERROR] `sort` or `uniq` command not found. Please ensure these standard utilities are in your system's PATH. The raw temp file has been kept for manual processing."
-        # Don't delete temp_filename in this case, so user can process it.
+        message = "[FATAL ERROR] `sort` or `uniq` command not found. Ensure these utilities are in your system's PATH."
         return 0, message
     except subprocess.CalledProcessError as e:
-        message = f"[FATAL ERROR] Post-processing failed:\n{e.stderr}\nThe raw temp file has been kept for manual processing."
-        # Don't delete temp_filename in this case
+        message = f"[FATAL ERROR] Post-processing failed:\n{e.stderr}"
         return 0, message
     finally:
-        # Clean up the temporary file.
+        # Clean up the large temporary file after processing is complete.
         if os.path.exists(temp_filename):
             try:
                 os.remove(temp_filename)
@@ -217,11 +218,14 @@ def generate_wordlist_logic(base_words, mutation_config, output_filename):
         return final_unique_count, f"Successfully generated {final_unique_count:,} unique passwords."
     except Exception as e:
         message = f"Could not count lines in final file, but it was created successfully. Error: {e}"
-        return -1, message 
+        return -1, message
 
 
 def trigger_wordlist_generation(state):
-
+    """
+    Main TUI function for Option 10. It shows the user a final resource estimate,
+    asks for confirmation, and then calls the main generation engine.
+    """
     tui.clear_screen()
     print("--- Generation Preview & Resource Estimate ---\n")
 
@@ -232,12 +236,12 @@ def trigger_wordlist_generation(state):
     if not base_words:
         print("No words selected for the engine. Cannot generate."); tui.pause(); return
     
-    tui.clear_screen()
-    print("--- Generation Preview & Resource Estimate ---\n")
+    # Show the user a final, detailed estimate before they commit.
     estimate.estimate_list_size(state)
     
     confirm = input("\nProceed with generation? (yes/no): ").strip().lower()
     if confirm == 'yes':
+        # Call the main logic function and display its return message.
         count, message = generate_wordlist_logic(base_words, mutation_config, output_filename)
         print(f"\n{message}")
     else:

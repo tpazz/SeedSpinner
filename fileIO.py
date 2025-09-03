@@ -1,14 +1,19 @@
 import tui
 import os
 
+# --- UI Interaction Functions ---
+# These functions are called from the TUI menu to handle file-related settings.
+
 def set_system_prompt(state):
+    """Prompts the user to set the file path for the AI's system prompt."""
     tui.clear_screen()
     print("--- Set System Prompt File ---\n")
     print("Enter the path to the system prompt file (e.g., CreativePrompt.txt).")
     current_path = state.get('system_prompt_path', 'Not Set')
     new_path = input(f"File path [Current: {current_path}]: ").strip()
+    
     if new_path:
-        # Basic check if file exists here, or rely on read error later
+        # Perform basic validation on the user-provided file path.
         if os.path.exists(new_path):
              if new_path.endswith(".txt"):
                  state['system_prompt_path'] = new_path
@@ -23,21 +28,26 @@ def set_system_prompt(state):
     tui.pause()
 
 def read_prompt_file(filepath: str) -> str | None:
+    """Safely reads the content of a text file and returns it as a string."""
     try:
-        # Basic check to prevent reading unexpected files, enhance as needed
+        # Validate the file before attempting to read it.
         if not filepath.endswith(".txt"):
              print(f"[Error] Invalid prompt file extension: {filepath}. Only .txt allowed.")
              return None
         if not os.path.exists(filepath):
             print(f"[Error] Prompt file not found: {filepath}")
             return None
+            
+        # Open and read the file content.
         with open(filepath, "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
+        # Catch any potential IO errors during file reading.
         print(f"[Error] Failed to read prompt file '{filepath}': {e}")
         return None    
 
 def set_output_filename(state):
+    """Prompts the user to set the name for the final wordlist file."""
     tui.clear_screen()
     print("--- Set Output Filename ---\n")
     current_name = state['output_filename']
@@ -47,4 +57,4 @@ def set_output_filename(state):
         print(f"Output filename set to: {state['output_filename']}")
     else:
         print("No changes made.")
-    tui.pause()            
+    tui.pause()
