@@ -11,3 +11,6 @@ env/
 .idea/
 *.txt
 *.tmp
+!ComplexPrompt.txt
+!CreativePrompt.txt
+!DirectPrompt.txt
