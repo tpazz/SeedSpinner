@@ -49,7 +49,10 @@ This tool is intended for **educational purposes and authorized security testing
 ## Usage
   
  ```bash
- python tui.py
+python3 -m venv .venv
+source .venv/bin/activate
+pip install openai
+python tui.py
  ```
 
 Core Logic Flow
