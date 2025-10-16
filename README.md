@@ -103,3 +103,6 @@ graph TD
     class A,B,C,D,E,F,G,H,I,J,K,L,M,N_Finalize,P,Q,R,Z darkTheme;
     
 ```
+### Ethical Discliamer 
+
+This tool is intended for educational purposes and authorized security testing only. Using this tool to attempt unauthorized access to any system or account is illegal and unethical. Always obtain explicit, written permission before using this tool on any system you do not own. The developers assume no liability and are not responsible for any misuse or damage caused by this program.
